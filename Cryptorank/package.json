@@ -1,0 +1,7 @@
+{
+  "dependencies": {
+    "axios": "^1.7.9",
+    "certifi": "^14.5.15",
+    "mongodb": "^6.12.0"
+  }
+}
