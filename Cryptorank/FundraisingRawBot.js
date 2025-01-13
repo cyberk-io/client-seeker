@@ -1,5 +1,11 @@
 const axios = require("axios");
 const { MongoClient, ObjectId } = require("mongodb");
+const crypto = require("crypto");
+
+function hashJSON(jsonData) {
+  const jsonString = JSON.stringify(jsonData); // Chuyển JSON thành chuỗi
+  return crypto.createHash("sha256").update(jsonString).digest("hex"); // Tính băm SHA-256
+}
 
 const uri = "mongodb+srv://rhass:rhass@cluster0.vq7bx.mongodb.net/";
 const client = new MongoClient(uri, {
@@ -79,7 +85,7 @@ async function fetchFundingRound(database) {
           item["stage"],
           item["date"]
         );
-        const record = {
+        const record_base = {
           crRoundId: fundingRound["id"],
           data: JSON.stringify(item),
           botStatus: "running",
@@ -87,6 +93,10 @@ async function fetchFundingRound(database) {
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
           lastScan: new Date().toISOString(),
+        };
+        const record = {
+          ...record_base,
+          hash: hashJSON(record_base),
         };
         await insertOrUpdateOne(
           database,
@@ -117,4 +127,8 @@ async function main() {
   console.log("Fetching funding round success");
   await client.close();
 }
-main();
+
+setInterval(() => {
+  console.log("Calling API...");
+  main();
+}, 60 * 5000);
