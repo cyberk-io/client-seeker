@@ -1,17 +1,43 @@
-const axios = require("axios");
-const { MongoClient, ObjectId } = require("mongodb");
+import axios from "axios";
+import crypto from "crypto";
+import mongoose from "mongoose";
+import dotenv from "dotenv";
 
-const uri = "mongodb+srv://rhass:rhass@cluster0.vq7bx.mongodb.net/";
-const client = new MongoClient(uri, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-  tls: true,
-});
+dotenv.config();
 
-const urlAllDB =
-  "https://api.cryptorank.io/v0/coins?withFundingRoundsData=true&lifeCycle=crowdsale,inactive,funding,scheduled,traded&locale=en&date=asc";
+const DB_COLLECTION = "raw";
+function hashJSON(jsonData) {
+  const jsonString = JSON.stringify(jsonData);
+  return crypto.createHash("sha256").update(jsonString).digest("hex");
+}
+const CRYPTO_RANK_API_URL = process.env.CRYPTO_RANK_API_URL;
+const CRYPTO_RANK_API_URL_FUNDING_ROUNDS =
+  process.env.CRYPTO_RANK_API_URL_FUNDING_ROUNDS;
 
-const urlFundingRound = "https://api.cryptorank.io/v0/funding-rounds-v2";
+const FundraisingSchema = new mongoose.Schema(
+  {
+    crRoundId: String,
+    data: String,
+    botStatus: {
+      type: String,
+      enum: ["running", "error", "completed"],
+    },
+    dataLevel: {
+      type: String,
+      enum: ["index", "raw", "projectScanned", "investorScanned"],
+    },
+    createdAt: Date,
+    updatedAt: Date,
+    lastScan: Date,
+    hash: String,
+  },
+  { versionKey: false }
+);
+
+const Fundraising = mongoose.model(
+  "rawDataFundraisingCryptorank",
+  FundraisingSchema
+);
 
 const payload = {
   sortingColumn: "date",
@@ -36,65 +62,63 @@ const headers = {
   TE: "trailers",
 };
 
-let dataTableList = [];
-
-async function fetchAllDB() {
-  const response = await axios.get(urlAllDB);
-  dataTableList = response.data;
+async function getFundingRoundData(dataTableList, key, stage, date) {
+  return dataTableList.data
+    .find((item) => item["key"] === key)
+    ["fundingRounds"].find(
+      (item) => item["type"] === stage && item["date"] === date
+    );
 }
 
-async function findFundingRound(key, stage, date) {
-  const project = dataTableList.data.find((item) => item["key"] === key);
-  const fundingRound = project["fundingRounds"].find(
-    (item) => item["type"] === stage && item["date"] === date
-  );
-  return fundingRound;
+async function getFundingRoundDataByID(id) {
+  return Fundraising.findOne({
+    crRoundId: id,
+  });
 }
 
-async function insertOrUpdateOne(database, query, record) {
+async function fundingRoundBulkInsert(dataTableList, fundingRoungList) {
   try {
-    const collection = database.collection("rawDataFundraisingCryptorank");
-    const options = { upsert: true };
-    const result = await collection.updateOne(query, record, options);
-    if (result.upsertedCount > 0) {
-      console.log(`Document inserted with _id: ${result.upsertedId._id}`);
-    } else {
-      console.log(`Document updated: ${result.modifiedCount} modified`);
-    }
-  } catch (err) {
-    console.error("Error:", err);
-  } finally {
-  }
-}
-
-async function fetchFundingRound(database) {
-  try {
-    const response = await axios.post(urlFundingRound, payload, headers);
-    const Fundraising = response.data;
-    var id_list = [];
     await Promise.all(
-      Fundraising.data.map(async (item, key) => {
-        const fundingRound = await findFundingRound(
+      fundingRoungList.data.map(async (item, key) => {
+        const fundingRoundData = await getFundingRoundData(
+          dataTableList,
           item["key"],
           item["stage"],
           item["date"]
         );
-        const record = {
-          crRoundId: fundingRound["id"],
+        const fundingRoundDataByID = await getFundingRoundDataByID(
+          fundingRoundData["id"]
+        );
+        const record_base = {
+          crRoundId: fundingRoundData["id"],
           data: JSON.stringify(item),
+        };
+        const hash = hashJSON(record_base);
+        if (fundingRoundDataByID?.hash === hash) {
+          console.log(
+            "Record already exists: " + key + " - " + fundingRoundData["id"]
+          );
+          return;
+        }
+        const record = {
+          ...record_base,
+          hash,
           botStatus: "running",
-          dataLevel: "Index",
+          dataLevel: "index",
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
           lastScan: new Date().toISOString(),
         };
-        await insertOrUpdateOne(
-          database,
-          { crRoundId: fundingRound["id"] },
-          { $set: record }
+        await Fundraising.findOneAndUpdate(
+          { crRoundId: fundingRoundData["id"] },
+          record,
+          {
+            upsert: true,
+            new: true,
+          }
         );
         console.log(
-          "Inserting record success: " + key + " - " + fundingRound["id"]
+          "Inserting record success: " + key + " - " + fundingRoundData["id"]
         );
       })
     );
@@ -105,16 +129,21 @@ async function fetchFundingRound(database) {
 }
 
 async function main() {
-  console.log("Connecting to database");
-  await client.connect();
-  const database = client.db("raw");
-  console.log("Connecting to database success");
-  console.log("Fetching data table list");
-  await fetchAllDB();
-  console.log("Fetching data table list success");
-  console.log("Fetching funding round");
-  await fetchFundingRound(database);
-  console.log("Fetching funding round success");
-  await client.close();
+  await mongoose.connect(process.env.MONGO_URI + DB_COLLECTION, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+  });
+  const { data: dataTableList } = await axios.get(CRYPTO_RANK_API_URL);
+  const { data: fundingRoungList } = await axios.post(
+    CRYPTO_RANK_API_URL_FUNDING_ROUNDS,
+    payload,
+    headers
+  );
+  await fundingRoundBulkInsert(dataTableList, fundingRoungList);
+  await mongoose.disconnect();
 }
-main();
+
+setInterval(() => {
+  console.log("Calling API...");
+  main();
+}, 60 * 5000);
