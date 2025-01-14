@@ -3,17 +3,15 @@ import crypto from "crypto";
 import mongoose from "mongoose";
 import dotenv from "dotenv";
 
-import Fundraising from "./FundraisingSchema.js";
+import Fundraising from "./Models/FundraisingModel.js";
 
 dotenv.config();
 
 const DB_COLLECTION = "raw";
-function hashJSON(jsonData) {
-  const jsonString = JSON.stringify(jsonData, Object.keys(jsonData).sort());
-  return crypto.createHash("sha256").update(jsonString).digest("hex");
-}
 const CRYPTO_RANK_URI = process.env.CRYPTO_RANK_URI;
 const CRYPTO_RANK_URI_ROUNDS = process.env.CRYPTO_RANK_URI_ROUNDS;
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+const TELEGRAM_BOT_CHAT_ID = process.env.TELEGRAM_BOT_CHAT_ID;
 
 const PAYLOAD = {
   sortingColumn: "date",
@@ -37,23 +35,8 @@ const HEADERS = {
   "Cache-Control": "no-cache",
   TE: "trailers",
 };
-
-async function getFundingRoundData(dataTableList, key, stage, date) {
-  return dataTableList.data
-    .find((item) => item["key"] === key)
-    ["fundingRounds"].find(
-      (item) => item["type"] === stage && item["date"] === date
-    );
-}
-
-async function getFundingRoundDataByID(id) {
-  return Fundraising.findOne({
-    crRoundId: id,
-  });
-}
-
 async function sendNotifi(message) {
-  const url = `https://api.telegram.org/bot7817152536:AAE13NQsSje5TqQo6WKAqgLM0uw7VfhiqC0/sendMessage?chat_id=-4506326252&text=${message}`;
+  const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage?chat_id=${TELEGRAM_BOT_CHAT_ID}&text=${message}`;
   await axios.get(url);
 }
 
@@ -71,6 +54,50 @@ async function fundingRoundInsertOrUpdate(roundID, record) {
     console.log(error);
   }
 }
+
+const hashJson = async (jsonData) => {
+  const jsonString = JSON.stringify(jsonData, Object.keys(jsonData).sort());
+  return crypto.createHash("sha256").update(jsonString).digest("hex");
+};
+
+const getRoundByID = async (id) => {
+  return Fundraising.findOne({
+    crRoundId: id,
+  });
+};
+
+const isRoundExist = async (item, dataTableList) => {
+  return dataTableList.data
+    .find((item) => item["key"] === key)
+    ["fundingRounds"].find(
+      (item) => item["type"] === stage && item["date"] === date
+    );
+};
+const createNewRound = async (roundID, record) => {
+  try {
+    await Fundraising.findOneAndUpdate({ crRoundId: roundID }, record, {
+      upsert: true,
+      new: true,
+    });
+    console.log("Inserting record success: - " + roundID);
+    return true;
+  } catch (error) {
+    sendNotifi(
+      `Round ID: ${roundID} insert error in ${new Date().toISOString()}`
+    );
+    console.log(error);
+    return null;
+  }
+};
+
+const fundingRoundBulkInsert = async (i, dataTableList, fundingRoungList) => {
+  if (i >= fundingRoungList.data.length) return;
+  const roundID = fundingRoungList.data[i]["id"];
+  if (await isRoundExist(fundingRoungList.data[i], dataTableList)) {
+    createNewRound(roundID);
+  }
+  fundingRoundBulkInsert(i + 1, dataTableList, fundingRoungList);
+};
 
 async function fundingRoundBulkInsert(dataTableList, fundingRoungList) {
   fundingRoungList.data.map(async (item, key) => {
