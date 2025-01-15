@@ -1,5 +1,5 @@
-import { axiosGet, axiosPost } from "../middleware/AxiosConnector.js";
 import dotenv from "dotenv";
+const AxiosModule = (await import("../middleware/AxiosConnector.js")).default;
 
 dotenv.config();
 
@@ -9,7 +9,6 @@ const CRYPTO_RANK_URI_ROUNDS = process.env.CRYPTO_RANK_URI_ROUNDS;
 const ROUND_PAYLOAD = {
   sortingColumn: "date",
   sortingDirection: "DESC",
-  limit: 2,
 };
 
 const HEADERS = {
@@ -30,9 +29,22 @@ const HEADERS = {
   TE: "trailers",
 };
 
+/*
+ * This function is used to get the project list
+ * 1. Get the project list from cryptorank
+ * 2. Return the project list
+ */
 export const projectList = async () => {
-  return await axiosGet(CRYPTO_RANK_URI);
+  return await AxiosModule.axiosGet(CRYPTO_RANK_URI);
 };
+
+/*
+ * This function is used to get the funding round list
+ */
 export const fundingRoundList = async () => {
-  return await axiosPost(CRYPTO_RANK_URI_ROUNDS, HEADERS, ROUND_PAYLOAD);
+  return await AxiosModule.axiosPost(
+    CRYPTO_RANK_URI_ROUNDS,
+    HEADERS,
+    ROUND_PAYLOAD
+  );
 };

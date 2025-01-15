@@ -28,8 +28,16 @@ export const find = async (query) => {
 };
 
 export const insertOrUpdate = async (query, record) => {
-  return await Fundraising.findOneAndUpdate(query, record, {
-    upsert: true,
-    new: true,
-  });
+  return await Fundraising.findOneAndUpdate(
+    query,
+    {
+      ...record,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
+    {
+      upsert: true,
+      new: true,
+    }
+  );
 };
