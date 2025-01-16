@@ -36,13 +36,12 @@ const mappingFundingRound = async (projectData, rounds) => {
 };
 /**
  * @alias Kiểm tra xem Rounds đã tồn tại trong database chưa bằng cách kiểm tra hash của Rounds
- * @param {Object} record_base: là đối tượng Rounds đầy đủ dữ liệu của Cryptorank
  * @param {Object} round: là đối tượng Rounds đầy đủ dữ liệu của Cryptorank
  * @returns trả về true nếu hash của Rounds đã tồn tại trong database và hash của Rounds trong database giống với hash của Rounds được truyền vào, trả về false nếu hash của Rounds không tồn tại trong database hoặc hash của Rounds trong database không giống với hash của Rounds được truyền vào
  */
 
-const isRoundRecordUptodate = async (record_base, round) => {
-  const hash = await helper.jsonToHash(record_base);
+const isRoundRecordUptodate = async (round) => {
+  const hash = await helper.jsonToHash(round);
   const hash_db = await fundraising.find({
     crRoundId: round["roundID"],
   });
@@ -52,7 +51,6 @@ const isRoundRecordUptodate = async (record_base, round) => {
 /**
  * @alias Thêm Rounds vào database
  * @description Thêm Rounds vào database sử dụng hàm insertOrUpdate
- * @param {Object} record_base: là đối tượng Rounds đầy đủ dữ liệu của Cryptorank
  * @param {Object} round: là đối tượng Rounds đầy đủ dữ liệu của Cryptorank
  * @returns dừng lại hàm nếu có lỗi
  */
@@ -83,10 +81,7 @@ const roundsBulkInsert = async (rounds) => {
   }
   const round = rounds.pop();
   delete round.topFollowers;
-  const record_base = {
-    data: round,
-  };
-  (await isRoundRecordUptodate(record_base, round))
+  (await isRoundRecordUptodate(round))
     ? await createOrUpdateRound(
         {
           lastScan: new Date().toISOString(),
@@ -95,8 +90,9 @@ const roundsBulkInsert = async (rounds) => {
       )
     : await createOrUpdateRound(
         {
-          ...record_base,
-          hash: await helper.jsonToHash(record_base),
+          crRoundId: round["roundID"],
+          data: round,
+          hash: await helper.jsonToHash(round),
           botStatus: "running",
           dataLevel: "raw",
           updatedAt: new Date().toISOString(),
