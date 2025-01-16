@@ -19,7 +19,7 @@ dotenv.config();
  * @param {Array} rounds: danh sách các Rounds
  * @returns trả về danh sách các Rounds với các RoundId tương ứng
  */
-const mappingFundingRound = async (projectData, rounds) => {
+const mappingRounds = async (projectData, rounds) => {
   return rounds.map((round) => {
     const matchingProject = projectData.find(
       (item) => item["key"] === round["key"]
@@ -112,7 +112,7 @@ async function main() {
   await database.mongoDB.connect();
   const { data: projects } = await cryptoRankService.fetchProjects();
   const { data: fundingRounds } = await cryptoRankService.fetchRounds();
-  const rounds = await mappingFundingRound(projects.data, fundingRounds.data);
+  const rounds = await mappingRounds(projects.data, fundingRounds.data);
   process.start(rounds.length, 0);
   await roundsBulkInsert(rounds);
 }
