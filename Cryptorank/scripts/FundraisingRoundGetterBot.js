@@ -15,13 +15,13 @@ dotenv.config();
 /**
  * @alias Map các Rounds với các Projects
  * @description Vì các Rounds của Cryptorank không có các thông tin về RoundId nên ta cần phải map các Rounds với các Projects để lấy được các thông tin về RoundId
- * @param {Array} projectData: danh sách các Projects
+ * @param {Array} projects: danh sách các Projects
  * @param {Array} rounds: danh sách các Rounds
  * @returns trả về danh sách các Rounds với các RoundId tương ứng
  */
-const mappingRounds = async (projectData, rounds) => {
+const mappingRounds = async (projects, rounds) => {
   return rounds.map((round) => {
-    const matchingProject = projectData.find(
+    const matchingProject = projects.find(
       (item) => item["key"] === round["key"]
     );
     const matchingRound = matchingProject?.fundingRounds.find(
