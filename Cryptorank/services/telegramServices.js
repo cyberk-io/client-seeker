@@ -1,0 +1,18 @@
+import { axiosServices } from "./axiosServices.js";
+import dotenv from "dotenv";
+
+dotenv.config();
+
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+const TELEGRAM_BOT_CHAT_ID = process.env.TELEGRAM_BOT_CHAT_ID;
+
+const sendNewMessageToTelegram = async (message) => {
+  const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage?chat_id=${TELEGRAM_BOT_CHAT_ID}&text=${message}`;
+  return axiosServices.get(url);
+};
+const sendErrorMessageToTelegram = async (message) => {
+  const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage?chat_id=${TELEGRAM_BOT_CHAT_ID}&text=${message}`;
+  return axiosServices.get(url);
+};
+
+export { sendNewMessageToTelegram, sendErrorMessageToTelegram };

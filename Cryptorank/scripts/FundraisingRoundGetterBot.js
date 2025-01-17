@@ -1,10 +1,17 @@
 import dotenv from "dotenv";
 import cliProgress from "cli-progress";
+import { sendErrorMessageToTelegram } from "../services/telegramServices.js";
+import { mongoDB } from "../database/mongoDatabase.js";
+import {
+  fetchCryptorankProjects,
+  fetchCryptorankRounds,
+} from "../services/cryptorankServices.js";
+import {
+  findFundraising,
+  createOrUpdateFundraising,
+} from "../models/raw/FundraisingModel.js";
+import { jsonToHash } from "../utils/helper.js";
 
-const database = (await import("../config/database.js")).default;
-const fundraising = (await import("../models/raw/FundraisingModel.js")).default;
-const cryptoRankService = (await import("../services/cryptorank.js")).default;
-const helper = (await import("../utils/helper.js")).default;
 const process = new cliProgress.SingleBar(
   {},
   cliProgress.Presets.shades_classic
@@ -19,17 +26,16 @@ dotenv.config();
  * @param {Array} rounds: danh sách các Rounds
  * @returns trả về danh sách các Rounds với các RoundId tương ứng
  */
-const mappingRounds = async (projects, rounds) => {
+const attachRoundIds = async (projects, rounds) => {
   return rounds.map((round) => {
     const matchingProject = projects.find(
       (item) => item["key"] === round["key"]
     );
-    const matchingRound = matchingProject?.fundingRounds.find(
-      (item) =>
-        item["type"] === round["stage"] && item["date"] === round["date"]
-    );
     return {
-      roundID: matchingRound?.id,
+      roundID: matchingProject?.fundingRounds.find(
+        (item) =>
+          item["type"] === round["stage"] && item["date"] === round["date"]
+      )?.id,
       ...round,
     };
   });
@@ -40,9 +46,9 @@ const mappingRounds = async (projects, rounds) => {
  * @returns trả về true nếu hash của Rounds đã tồn tại trong database và hash của Rounds trong database giống với hash của Rounds được truyền vào, trả về false nếu hash của Rounds không tồn tại trong database hoặc hash của Rounds trong database không giống với hash của Rounds được truyền vào
  */
 
-const isRoundRecordUptodate = async (round) => {
-  const hash = await helper.jsonToHash(round);
-  const hash_db = await fundraising.find({
+const isRoundRecordUpToDate = async (round) => {
+  const hash = await jsonToHash(round);
+  const hash_db = await findFundraising({
     crRoundId: round["roundID"],
   });
   return hash_db?.hash === hash;
@@ -57,11 +63,9 @@ const isRoundRecordUptodate = async (round) => {
 
 const createOrUpdateRound = async (record, roundId) => {
   try {
-    await fundraising.insertOrUpdate({ crRoundId: roundId }, record);
-    // console.log("Record Updated: " + roundId);
+    await createOrUpdateFundraising({ crRoundId: roundId }, record);
   } catch (error) {
-    console.log(error);
-    helper.sendNotifi(
+    sendErrorMessageToTelegram(
       `Round ID: ${roundId} insert error in ${new Date().toISOString()}`
     );
   }
@@ -74,33 +78,29 @@ const createOrUpdateRound = async (record, roundId) => {
  * @param {*} rounds: là danh sách Rounds đầy đủ dữ liệu của Cryptorank
  * @returns dừng lại đệ quy khi danh sách Rounds rỗng
  */
-const roundsBulkInsert = async (rounds) => {
+const roundsBulkInsert = async (rounds, length) => {
   if (rounds.length == 0) {
     process.stop();
     return;
   }
   const round = rounds.pop();
-  delete round.topFollowers;
-  (await isRoundRecordUptodate(round))
-    ? await createOrUpdateRound(
-        {
+  await createOrUpdateRound(
+    (await isRoundRecordUpToDate(round))
+      ? {
           lastScan: new Date().toISOString(),
-        },
-        round["roundID"]
-      )
-    : await createOrUpdateRound(
-        {
+        }
+      : {
           crRoundId: round["roundID"],
           data: round,
-          hash: await helper.jsonToHash(round),
+          hash: await jsonToHash(round),
           botStatus: "running",
           dataLevel: "raw",
           updatedAt: new Date().toISOString(),
         },
-        round["roundID"]
-      );
-  process.update(rounds.length);
-  roundsBulkInsert(rounds);
+    round["roundID"]
+  );
+  process.update(length - rounds.length);
+  roundsBulkInsert(rounds, length);
 };
 
 /**
@@ -109,11 +109,17 @@ const roundsBulkInsert = async (rounds) => {
  * @returns dừng lại hàm nếu có lỗi
  */
 async function main() {
-  await database.mongoDB.connect();
-  const { data: projects } = await cryptoRankService.fetchProjects();
-  const { data: fundingRounds } = await cryptoRankService.fetchRounds();
-  const rounds = await mappingRounds(projects.data, fundingRounds.data);
+  await mongoDB.connect();
+  const { data: projects } = await fetchCryptorankProjects();
+  const { data: fundingRounds } = await fetchCryptorankRounds();
+  const rounds = await attachRoundIds(
+    projects.data,
+    fundingRounds.data.map((round) => {
+      delete round.topFollowers;
+      return round;
+    })
+  );
   process.start(rounds.length, 0);
-  await roundsBulkInsert(rounds);
+  await roundsBulkInsert(rounds, rounds.length);
 }
 main();

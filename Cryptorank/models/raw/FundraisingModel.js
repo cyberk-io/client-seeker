@@ -22,11 +22,11 @@ const Fundraising = mongoose.model(
   "rawDataFundraisingCryptorank",
   FundraisingSchema
 );
-const find = async (query) => {
+const findFundraising = async (query) => {
   return await Fundraising.findOne(query);
 };
 
-const insertOrUpdate = async (query, record) => {
+const createOrUpdateFundraising = async (query, record) => {
   return await Fundraising.findOneAndUpdate(
     query,
     {
@@ -40,7 +40,4 @@ const insertOrUpdate = async (query, record) => {
   );
 };
 
-export default {
-  find,
-  insertOrUpdate,
-};
+export { findFundraising, createOrUpdateFundraising };

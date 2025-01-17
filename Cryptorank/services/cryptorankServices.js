@@ -1,7 +1,7 @@
+import { axiosServices } from "./axiosServices.js";
 import dotenv from "dotenv";
-dotenv.config();
 
-const request = (await import("../config/request.js")).default;
+dotenv.config();
 
 const CRYPTO_RANK_URI = process.env.CRYPTO_RANK_URI;
 const CRYPTO_RANK_URI_ROUNDS = process.env.CRYPTO_RANK_URI_ROUNDS;
@@ -34,8 +34,8 @@ const HEADERS = {
  * @description Lấy tất cả Projects của Cryptorank từ API của Cryptorank
  * @returns trả về danh sách tất cả Projects của Cryptorank
  */
-const fetchProjects = async () => {
-  return await request.axiosModule.get(CRYPTO_RANK_URI);
+const fetchCryptorankProjects = async () => {
+  return await axiosServices.get(CRYPTO_RANK_URI);
 };
 
 /**
@@ -43,14 +43,11 @@ const fetchProjects = async () => {
  * @description Lấy tất cả Rounds của Cryptorank từ API của Cryptorank
  * @returns trả về danh sách tất cả Rounds của Cryptorank
  */
-const fetchRounds = async () => {
-  return await request.axiosModule.post(
+const fetchCryptorankRounds = async () => {
+  return await axiosServices.post(
     CRYPTO_RANK_URI_ROUNDS,
     HEADERS,
     ROUND_PAYLOAD
   );
 };
-export default {
-  fetchProjects,
-  fetchRounds,
-};
+export { fetchCryptorankProjects, fetchCryptorankRounds };

@@ -21,6 +21,4 @@ const mongoDB = {
   },
 };
 
-export default {
-  mongoDB,
-};
+export { mongoDB };
