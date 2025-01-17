@@ -1,16 +1,16 @@
 import dotenv from "dotenv";
 import cliProgress from "cli-progress";
-import { sendErrorMessageToTelegram } from "../services/telegramServices.js";
-import { mongoDB } from "../database/mongoDatabase.js";
+import { sendErrorMessageToTelegram } from "./services/telegramServices.js";
+import { mongoDB } from "./database/mongoDatabase.js";
 import {
   fetchCryptorankProjects,
   fetchCryptorankRounds,
-} from "../services/cryptorankServices.js";
+} from "./services/cryptorankServices.js";
 import {
   findFundraising,
   createOrUpdateFundraising,
-} from "../models/raw/FundraisingModel.js";
-import { jsonToHash } from "../utils/helper.js";
+} from "./models/raw/FundraisingModel.js";
+import { jsonToHash } from "./utils/helper.js";
 
 const process = new cliProgress.SingleBar(
   {},
@@ -112,13 +112,11 @@ async function main() {
   await mongoDB.connect();
   const { data: projects } = await fetchCryptorankProjects();
   const { data: fundingRounds } = await fetchCryptorankRounds();
-  const rounds = await attachRoundIds(
-    projects.data,
-    fundingRounds.data.map((round) => {
-      delete round.topFollowers;
-      return round;
-    })
-  );
+  const cleanFundingRounds = fundingRounds.data.map((round) => {
+    delete round.topFollowers;
+    return round;
+  });
+  const rounds = await attachRoundIds(projects.data, cleanFundingRounds);
   process.start(rounds.length, 0);
   await roundsBulkInsert(rounds, rounds.length);
 }
