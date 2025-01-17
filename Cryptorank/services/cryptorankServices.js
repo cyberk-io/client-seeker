@@ -1,5 +1,5 @@
+import { axiosServices } from "./axiosServices.js";
 import dotenv from "dotenv";
-const AxiosModule = (await import("../middleware/AxiosConnector.js")).default;
 
 dotenv.config();
 
@@ -29,22 +29,25 @@ const HEADERS = {
   TE: "trailers",
 };
 
-/*
- * This function is used to get the project list
- * 1. Get the project list from cryptorank
- * 2. Return the project list
+/**
+ * @alias Lấy tất cả Projects của Cryptorank
+ * @description Lấy tất cả Projects của Cryptorank từ API của Cryptorank
+ * @returns trả về danh sách tất cả Projects của Cryptorank
  */
-export const projectList = async () => {
-  return await AxiosModule.axiosGet(CRYPTO_RANK_URI);
+const fetchCryptorankProjects = async () => {
+  return await axiosServices.get(CRYPTO_RANK_URI);
 };
 
-/*
- * This function is used to get the funding round list
+/**
+ * @alias Lấy tất cả Rounds của Cryptorank
+ * @description Lấy tất cả Rounds của Cryptorank từ API của Cryptorank
+ * @returns trả về danh sách tất cả Rounds của Cryptorank
  */
-export const fundingRoundList = async () => {
-  return await AxiosModule.axiosPost(
+const fetchCryptorankRounds = async () => {
+  return await axiosServices.post(
     CRYPTO_RANK_URI_ROUNDS,
     HEADERS,
     ROUND_PAYLOAD
   );
 };
+export { fetchCryptorankProjects, fetchCryptorankRounds };

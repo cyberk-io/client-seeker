@@ -1,139 +1,123 @@
 import dotenv from "dotenv";
 import cliProgress from "cli-progress";
-
-import { find, insertOrUpdate } from "./Models/FundraisingModel.js";
-import { databaseConnect } from "./Services/MongoDBConnectService.js";
+import { sendErrorMessageToTelegram } from "./services/telegramServices.js";
+import { mongoDB } from "./database/mongoDatabase.js";
 import {
-  projectList,
-  fundingRoundList,
-} from "./services/CryptorankQueryService.js";
-const Helper = (await import("./Helper.js")).default;
-const createFundingRoundProcess = new cliProgress.SingleBar(
+  fetchCryptorankProjects,
+  fetchCryptorankRounds,
+} from "./services/cryptorankServices.js";
+import {
+  findFundraising,
+  createOrUpdateFundraising,
+} from "./models/raw/FundraisingModel.js";
+import { jsonToHash } from "./utils/helper.js";
+
+const process = new cliProgress.SingleBar(
   {},
   cliProgress.Presets.shades_classic
 );
 
 dotenv.config();
 
-/*
- * This function is used to map the funding round to the project
- * 1. Get the project data
- * 2. Get the funding round data
- * 3. Map the funding round to the project
- * 4. Return the mapped funding round
+/**
+ * @alias Map các Rounds với các Projects
+ * @description Vì các Rounds của Cryptorank không có các thông tin về RoundId nên ta cần phải map các Rounds với các Projects để lấy được các thông tin về RoundId
+ * @param {Array} projects: danh sách các Projects
+ * @param {Array} rounds: danh sách các Rounds
+ * @returns trả về danh sách các Rounds với các RoundId tương ứng
  */
-const mappingFundingRound = async (projectData, fundingRoundData) => {
-  return fundingRoundData.data.map((round) => {
-    const matchingProject = projectData.data.find(
+const attachRoundIds = async (projects, rounds) => {
+  return rounds.map((round) => {
+    const matchingProject = projects.find(
       (item) => item["key"] === round["key"]
     );
-    const matchingRound = matchingProject?.fundingRounds.find(
-      (item) =>
-        item["type"] === round["stage"] && item["date"] === round["date"]
-    );
-
     return {
-      roundID: matchingRound?.id,
+      roundID: matchingProject?.fundingRounds.find(
+        (item) =>
+          item["type"] === round["stage"] && item["date"] === round["date"]
+      )?.id,
       ...round,
     };
   });
 };
-/*
- * This function is used to check if the record is duplicate
- * 1. Get hash of the record
- * 2. Get hash of the record in database
- * 3. If hash is the same, return true
- * 4. If hash is different, return false
- * 5. If record is not in database, return false
- * 6. If record is in database, return true
- * @alias isRoundRecordDuplicate
- * @param {Object} record_base - The record base
- * @param {Object} round - The round
- * @returns {boolean} - True if the record is duplicate, false otherwise
+/**
+ * @alias Kiểm tra xem Rounds đã tồn tại trong database chưa bằng cách kiểm tra hash của Rounds
+ * @param {Object} round: là đối tượng Rounds đầy đủ dữ liệu của Cryptorank
+ * @returns trả về true nếu hash của Rounds đã tồn tại trong database và hash của Rounds trong database giống với hash của Rounds được truyền vào, trả về false nếu hash của Rounds không tồn tại trong database hoặc hash của Rounds trong database không giống với hash của Rounds được truyền vào
  */
-const isRoundRecordDuplicate = async (record_base, round) => {
-  const hash = await Helper.hashJson(record_base);
-  try {
-    const { hash: hash_db } = await find({ crRoundId: round["roundID"] });
-    if (hash_db === hash) {
-      return true;
-    }
-    return false;
-  } catch (error) {
-    return false;
-  }
+
+const isRoundRecordUpToDate = async (round) => {
+  const hash = await jsonToHash(round);
+  const hash_db = await findFundraising({
+    crRoundId: round["roundID"],
+  });
+  return hash_db?.hash === hash;
 };
 
-/*
- * This function is used to process the fundraising round to database
- * 1. Insert record to database
- * 2. Update record to database
+/**
+ * @alias Thêm Rounds vào database
+ * @description Thêm Rounds vào database sử dụng hàm insertOrUpdate
+ * @param {Object} round: là đối tượng Rounds đầy đủ dữ liệu của Cryptorank
+ * @returns dừng lại hàm nếu có lỗi
  */
-const createFundingRound = async (record_base, round) => {
+
+const createOrUpdateRound = async (record, roundId) => {
   try {
-    await insertOrUpdate(
-      { crRoundId: round["roundID"] },
-      {
-        ...record_base,
-        hash: await Helper.hashJson(record_base),
-        botStatus: "running",
-        dataLevel: "raw",
-        lastScan: new Date().toISOString(),
-      }
-    );
-    console.log("Record inserted: " + round["roundID"]);
+    await createOrUpdateFundraising({ crRoundId: roundId }, record);
   } catch (error) {
-    console.log(error);
-    Helper.sendNotifi(
-      `Round ID: ${
-        round["roundID"]
-      } insert error in ${new Date().toISOString()}`
+    sendErrorMessageToTelegram(
+      `Round ID: ${roundId} insert error in ${new Date().toISOString()}`
     );
   }
 };
-/*
- * This function is used to bulk insert the funding round to database
- * 1. If fundingRoundDataMapping is empty, return
- * 2. Get the last funding round
- * 3. Process the funding round
- * 4. Call the function again
- */
 
-const fundingRoundBulkInsert = async (fundingRoundDataMapping) => {
-  if (fundingRoundDataMapping.length == 0) {
-    createFundingRoundProcess.stop();
+/**
+ * @alias Thêm các Rounds vào database
+ * @description Thêm các Rounds vào database sử dụng đệ quy. Lấy ra phần tử bằng phương thức pop(), xóa đi trường topFollowers vì không ảnh hưởng tới dữ liệu cần thiết.
+ * @description Kiểm tra xem Rounds đã tồn tại trong database chưa, nếu chưa thì thêm vào database, nếu có thì bỏ qua. Hàm đệ quy sẽ dừng khi danh sách Rounds rỗng
+ * @param {*} rounds: là danh sách Rounds đầy đủ dữ liệu của Cryptorank
+ * @returns dừng lại đệ quy khi danh sách Rounds rỗng
+ */
+const roundsBulkInsert = async (rounds, length) => {
+  if (rounds.length == 0) {
+    process.stop();
     return;
   }
-  const round = fundingRoundDataMapping.pop();
-  delete round.topFollowers;
-  const record_base = {
-    crRoundId: round["roundID"],
-    data: JSON.stringify(round),
-  };
-  if (!(await isRoundRecordDuplicate(record_base, round))) {
-    await createFundingRound(record_base, round);
-  }
-  createFundingRoundProcess.update(fundingRoundDataMapping.length);
-  fundingRoundBulkInsert(fundingRoundDataMapping);
+  const round = rounds.pop();
+  await createOrUpdateRound(
+    (await isRoundRecordUpToDate(round))
+      ? {
+          lastScan: new Date().toISOString(),
+        }
+      : {
+          crRoundId: round["roundID"],
+          data: round,
+          hash: await jsonToHash(round),
+          botStatus: "running",
+          dataLevel: "raw",
+          updatedAt: new Date().toISOString(),
+        },
+    round["roundID"]
+  );
+  process.update(length - rounds.length);
+  roundsBulkInsert(rounds, length);
 };
 
-/*
- * This function is used to run the bot
- * 1. Connect to database
- * 2. Get the project data
- * 3. Get the funding round data
- * 4. Map the funding round to the project
- * 5. Bulk insert the funding round to database
+/**
+ * @alias Hàm chính
+ * @description Hàm chính được gọi để thực hiện việc thêm Rounds vào database
+ * @returns dừng lại hàm nếu có lỗi
  */
 async function main() {
-  await databaseConnect();
-  const { data: projectData } = await projectList();
-  const { data: fundingRoundData } = await fundingRoundList();
-  const fundingRoundDataMapping = await mappingFundingRound(
-    projectData,
-    fundingRoundData
-  );
-  // createFundingRoundProcess.start(fundingRoundDataMapping.length, 0);
-  await fundingRoundBulkInsert(fundingRoundDataMapping);
+  await mongoDB.connect();
+  const { data: projects } = await fetchCryptorankProjects();
+  const { data: fundingRounds } = await fetchCryptorankRounds();
+  const cleanFundingRounds = fundingRounds.data.map((round) => {
+    delete round.topFollowers;
+    return round;
+  });
+  const rounds = await attachRoundIds(projects.data, cleanFundingRounds);
+  process.start(rounds.length, 0);
+  await roundsBulkInsert(rounds, rounds.length);
 }
 main();
