@@ -17,6 +17,13 @@ const process = new cliProgress.SingleBar(
 
 dotenv.config();
 
+/**
+ * @alias Kiểm tra Project có cần cập nhật hay không
+ * @param {object} project là thông tin của Project từ Cryptorank
+ * @description So sánh hash của Project từ Cryptorank với hash của Project trong database
+ * @returns trả về true nếu Project không cần cập nhật, false nếu Project cần cập nhật
+ */
+
 const isProjectRecordUpToDate = async (project) => {
   const hash = await jsonToHash(project);
   const hash_db = await findFundraising({
@@ -25,6 +32,13 @@ const isProjectRecordUpToDate = async (project) => {
   return hash_db?.hash === hash;
 };
 
+/**
+ * @alias Tạo hoặc cập nhật Project trong database
+ * @param {object} record là thông tin của Project cần tạo hoặc cập nhật
+ * @param {string} key là key của Project trên Cryptorank
+ * @description Tạo mới hoặc cập nhật thông tin của một Project vào database
+ * @returns không có giá trị trả về
+ */
 const createOrUpdateProjectRecord = async (record, key) => {
   try {
     await createOrUpdateProject({ crProjectSlug: key }, record);
@@ -34,6 +48,12 @@ const createOrUpdateProjectRecord = async (record, key) => {
     );
   }
 };
+
+/**
+ * @alias Quét thông tin Project từ Cryptorank
+ * @description Lấy thông tin chi tiết của Project từ Cryptorank và lưu vào database
+ * @returns không có giá trị trả về
+ */
 
 const projectsScanning = async () => {
   const { data: fundraising } = await findFundraising({ dataLevel: "raw" });
