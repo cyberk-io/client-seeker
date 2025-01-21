@@ -1,5 +1,6 @@
 import { axiosServices } from "./axiosServices.js";
 import dotenv from "dotenv";
+import { JSDOM } from "jsdom";
 
 dotenv.config();
 
@@ -50,4 +51,41 @@ const fetchCryptorankRounds = async () => {
     ROUND_PAYLOAD
   );
 };
-export { fetchCryptorankProjects, fetchCryptorankRounds };
+
+/**
+ * @alias Lấy buildId của Cryptorank
+ * @param {string} key là key của project trên Cryptorank
+ * @description buildId là chỉ số thời gian của file cache trên hệ thống cryptorank
+ * @returns trả về buildId của Cryptorank để sử dụng cho các API khác
+ */
+const getCryptorankCacheId = async (key) => {
+  const response = await axiosServices.get(
+    `https://cryptorank.io/price/${key}`
+  );
+  const document = new JSDOM(response.data).window.document;
+  const jsonData = JSON.parse(
+    document.querySelector("script#__NEXT_DATA__").textContent
+  );
+  return jsonData.buildId;
+};
+
+/**
+ * @alias Lấy thông tin Project của Cryptorank
+ * @param {string} cacheId là buildId của file cache trên hệ thống cryptorank
+ * @param {string} projectKey là key của project trên Cryptorank
+ * @description Lấy thông tin chi tiết của một Project từ API của Cryptorank
+ * @returns trả về thông tin chi tiết của Project dạng json
+ */
+
+const getCryptorankProject = async (cacheId, projectKey) => {
+  return await axiosServices.get(
+    `https://cryptorank.io/_next/data/${cacheId}/en/price/${projectKey}.json?coinKey=${projectKey}`
+  );
+};
+
+export {
+  fetchCryptorankProjects,
+  fetchCryptorankRounds,
+  getCryptorankCacheId,
+  getCryptorankProject,
+};
