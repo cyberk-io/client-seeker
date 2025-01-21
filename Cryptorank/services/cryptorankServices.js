@@ -6,6 +6,8 @@ dotenv.config();
 
 const CRYPTO_RANK_URI = process.env.CRYPTO_RANK_URI;
 const CRYPTO_RANK_URI_ROUNDS = process.env.CRYPTO_RANK_URI_ROUNDS;
+const CRYPTO_RANK_CACHE_URI = process.env.CRYPTO_RANK_CACHE_URI;
+const CRYPTO_RANK_PROJECT_URI = process.env.CRYPTO_RANK_PROJECT_URI;
 
 const ROUND_PAYLOAD = {
   sortingColumn: "date",
@@ -59,9 +61,7 @@ const fetchCryptorankRounds = async () => {
  * @returns trả về buildId của Cryptorank để sử dụng cho các API khác
  */
 const getCryptorankCacheId = async (key) => {
-  const response = await axiosServices.get(
-    `https://cryptorank.io/price/${key}`
-  );
+  const response = await axiosServices.get(`${CRYPTO_RANK_CACHE_URI}${key}`);
   const document = new JSDOM(response.data).window.document;
   const jsonData = JSON.parse(
     document.querySelector("script#__NEXT_DATA__").textContent
@@ -79,7 +79,9 @@ const getCryptorankCacheId = async (key) => {
 
 const getCryptorankProject = async (cacheId, projectKey) => {
   return await axiosServices.get(
-    `https://cryptorank.io/_next/data/${cacheId}/en/price/${projectKey}.json?coinKey=${projectKey}`
+    CRYPTO_RANK_PROJECT_URI.replace("${cacheId}", cacheId)
+      .replace("${projectKey}", projectKey)
+      .replace("${projectKey}", projectKey)
   );
 };
 
