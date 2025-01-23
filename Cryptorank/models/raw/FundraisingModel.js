@@ -25,6 +25,9 @@ const Fundraising = mongoose.model(
 const findFundraising = async (query) => {
   return await Fundraising.findOne(query);
 };
+const findAndUpdateRound = async (filter, update) => {
+  return await Fundraising.findOneAndUpdate(filter, update);
+};
 
 const createOrUpdateFundraising = async (query, record) => {
   return await Fundraising.findOneAndUpdate(
@@ -40,4 +43,4 @@ const createOrUpdateFundraising = async (query, record) => {
   );
 };
 
-export { findFundraising, createOrUpdateFundraising };
+export { findFundraising, createOrUpdateFundraising, findAndUpdateRound };

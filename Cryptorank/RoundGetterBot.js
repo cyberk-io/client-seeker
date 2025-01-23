@@ -47,7 +47,7 @@ const attachRoundIds = async (projects, rounds) => {
  */
 
 const isRoundRecordUpToDate = async (round) => {
-  const hash = await jsonToHash(round);
+  const hash = jsonToHash(round);
   const hash_db = await findFundraising({
     crRoundId: round["roundID"],
   });

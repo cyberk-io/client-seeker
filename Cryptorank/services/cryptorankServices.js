@@ -37,8 +37,8 @@ const HEADERS = {
  * @description Lấy tất cả Projects của Cryptorank từ API của Cryptorank
  * @returns trả về danh sách tất cả Projects của Cryptorank
  */
-const fetchCryptorankProjects = async () => {
-  return await axiosServices.get(CRYPTO_RANK_URI);
+const fetchCryptorankProjects = () => {
+  return axiosServices.get(CRYPTO_RANK_URI);
 };
 
 /**
@@ -46,12 +46,8 @@ const fetchCryptorankProjects = async () => {
  * @description Lấy tất cả Rounds của Cryptorank từ API của Cryptorank
  * @returns trả về danh sách tất cả Rounds của Cryptorank
  */
-const fetchCryptorankRounds = async () => {
-  return await axiosServices.post(
-    CRYPTO_RANK_URI_ROUNDS,
-    HEADERS,
-    ROUND_PAYLOAD
-  );
+const fetchCryptorankRounds = () => {
+  return axiosServices.post(CRYPTO_RANK_URI_ROUNDS, HEADERS, ROUND_PAYLOAD);
 };
 
 /**
@@ -78,11 +74,13 @@ const getCryptorankCacheId = async (key) => {
  */
 
 const getCryptorankProject = async (cacheId, projectKey) => {
-  return await axiosServices.get(
-    CRYPTO_RANK_PROJECT_URI.replace("${cacheId}", cacheId)
-      .replace("${projectKey}", projectKey)
-      .replace("${projectKey}", projectKey)
+  const response = await axiosServices.get(
+    CRYPTO_RANK_PROJECT_URI.replace("${cacheId}", cacheId).replaceAll(
+      "${projectKey}",
+      projectKey
+    )
   );
+  return response?.data?.pageProps?.coin || null;
 };
 
 export {

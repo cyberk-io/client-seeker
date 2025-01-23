@@ -2,8 +2,11 @@ import dotenv from "dotenv";
 import cliProgress from "cli-progress";
 import { sendErrorMessageToTelegram } from "./services/telegramServices.js";
 import { mongoDB } from "./database/mongoDatabase.js";
-import { jsonToHash } from "./utils/helper.js";
-import { findFundraising } from "./models/raw/FundraisingModel.js";
+import { jsonToHash, sleep } from "./utils/helper.js";
+import {
+  findFundraising,
+  findAndUpdateRound,
+} from "./models/raw/FundraisingModel.js";
 import {
   getCryptorankCacheId,
   getCryptorankProject,
@@ -25,7 +28,7 @@ dotenv.config();
  */
 
 const isProjectRecordUpToDate = async (project) => {
-  const hash = await jsonToHash(project);
+  const hash = jsonToHash(project);
   const hash_db = await findFundraising({
     crProjectSlug: project["key"],
   });
@@ -55,12 +58,13 @@ const createOrUpdateProjectRecord = async (record, key) => {
  * @returns không có giá trị trả về
  */
 
-const projectsScanning = async () => {
-  const { data: fundraising } = await findFundraising({ dataLevel: "raw" });
+const projectCreate = async () => {
+  const { data: fundraising } = await findAndUpdateRound(
+    { dataLevel: "raw" },
+    { dataLevel: "projectScanned" }
+  );
   const cacheId = await getCryptorankCacheId(fundraising["key"]);
-  const { data: { pageProps: { coin: project } } = {} } =
-    (await getCryptorankProject(cacheId, fundraising["key"])) || {};
-
+  const project = await getCryptorankProject(cacheId, fundraising["key"]);
   await createOrUpdateProjectRecord(
     (await isProjectRecordUpToDate(project))
       ? {
@@ -69,17 +73,19 @@ const projectsScanning = async () => {
       : {
           crProjectSlug: project["key"],
           data: project,
-          hash: await jsonToHash(project),
+          hash: jsonToHash(project),
           dataType: "new",
           updatedAt: new Date().toISOString(),
         },
     project["key"]
   );
-  //   projectsScanning(rounds, length);
+  console.log("Created: ", project["key"]);
+  await sleep(10000);
+  projectCreate();
 };
 
 async function main() {
   await mongoDB.connect();
-  await projectsScanning();
+  await projectCreate();
 }
 main();
