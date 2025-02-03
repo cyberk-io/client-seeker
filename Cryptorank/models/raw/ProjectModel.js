@@ -17,12 +17,12 @@ const ProjectSchema = new mongoose.Schema(
 );
 const Project = mongoose.model("rawDataProjectCryptorank", ProjectSchema);
 
-const findProject = async (query) => {
-  return await Project.findOne(query);
+const findOneProject = async (query) => {
+  return Project.findOne(query);
 };
 
 const createOrUpdateProject = async (query, record) => {
-  return await Project.findOneAndUpdate(
+  return Project.findOneAndUpdate(
     query,
     {
       ...record,
@@ -35,4 +35,4 @@ const createOrUpdateProject = async (query, record) => {
   );
 };
 
-export { findProject, createOrUpdateProject };
+export { findOneProject, createOrUpdateProject };

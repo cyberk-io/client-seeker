@@ -4,11 +4,12 @@ import { sendErrorMessageToTelegram } from "./services/telegramServices.js";
 import { mongoDB } from "./database/mongoDatabase.js";
 import { jsonToHash, sleep } from "./utils/helper.js";
 import {
-  findFundraising,
-  findAndUpdateRound,
-} from "./models/raw/FundraisingModel.js";
+  findOneRound,
+  findOneAndUpdateRound,
+  createOrUpdateRound,
+} from "./models/raw/RoundModel.js";
 import {
-  getCryptorankCacheId,
+  getCryptorankInvestorCacheId,
   getCryptorankProject,
 } from "./services/cryptorankServices.js";
 import { createOrUpdateProject } from "./models/raw/ProjectModel.js";
@@ -29,7 +30,7 @@ dotenv.config();
 
 const isProjectRecordUpToDate = async (project) => {
   const hash = jsonToHash(project);
-  const hash_db = await findFundraising({
+  const hash_db = await findOneRound({
     crProjectSlug: project["key"],
   });
   return hash_db?.hash === hash;
@@ -59,12 +60,12 @@ const createOrUpdateProjectRecord = async (record, key) => {
  */
 
 const projectCreate = async () => {
-  const { data: fundraising } = await findAndUpdateRound(
+  const { data: round } = await findOneAndUpdateRound(
     { dataLevel: "raw" },
     { dataLevel: "projectScanned" }
   );
-  const cacheId = await getCryptorankCacheId(fundraising["key"]);
-  const project = await getCryptorankProject(cacheId, fundraising["key"]);
+  const cacheId = await getCryptorankInvestorCacheId(round["key"]);
+  const project = await getCryptorankProject(cacheId, round["key"]);
   await createOrUpdateProjectRecord(
     (await isProjectRecordUpToDate(project))
       ? {
@@ -76,6 +77,7 @@ const projectCreate = async () => {
           hash: jsonToHash(project),
           dataType: "new",
           updatedAt: new Date().toISOString(),
+          lastScan: new Date().toISOString(),
         },
     project["key"]
   );
@@ -87,5 +89,6 @@ const projectCreate = async () => {
 async function main() {
   await mongoDB.connect();
   await projectCreate();
+  // khi start sẽ tạo 1 bản ghi trên bảng BOT - có thể viết hàm kill để close terminal và xóa bản ghi trên database
 }
 main();
