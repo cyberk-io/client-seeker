@@ -6,10 +6,7 @@ import {
   fetchCryptorankProjects,
   fetchCryptorankRounds,
 } from "./services/cryptorankServices.js";
-import {
-  findFundraising,
-  createOrUpdateFundraising,
-} from "./models/raw/FundraisingModel.js";
+import { findOneRound, createOrUpdateRound } from "./models/raw/RoundModel.js";
 import { jsonToHash } from "./utils/helper.js";
 
 const process = new cliProgress.SingleBar(
@@ -47,8 +44,8 @@ const attachRoundIds = async (projects, rounds) => {
  */
 
 const isRoundRecordUpToDate = async (round) => {
-  const hash = await jsonToHash(round);
-  const hash_db = await findFundraising({
+  const hash = jsonToHash(round);
+  const hash_db = await findOneRound({
     crRoundId: round["roundID"],
   });
   return hash_db?.hash === hash;
@@ -61,9 +58,9 @@ const isRoundRecordUpToDate = async (round) => {
  * @returns dừng lại hàm nếu có lỗi
  */
 
-const createOrUpdateRound = async (record, roundId) => {
+const saveRound = async (record, roundId) => {
   try {
-    await createOrUpdateFundraising({ crRoundId: roundId }, record);
+    await createOrUpdateRound({ crRoundId: roundId }, record);
   } catch (error) {
     sendErrorMessageToTelegram(
       `Round ID: ${roundId} insert error in ${new Date().toISOString()}`
@@ -84,7 +81,7 @@ const roundsBulkInsert = async (rounds, length) => {
     return;
   }
   const round = rounds.pop();
-  await createOrUpdateRound(
+  await saveRound(
     (await isRoundRecordUpToDate(round))
       ? {
           lastScan: new Date().toISOString(),
@@ -96,6 +93,7 @@ const roundsBulkInsert = async (rounds, length) => {
           botStatus: "running",
           dataLevel: "raw",
           updatedAt: new Date().toISOString(),
+          lastScan: new Date().toISOString(),
         },
     round["roundID"]
   );
