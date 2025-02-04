@@ -67,6 +67,7 @@ const processAndSaveInvestor = async (investor) => {
           lastScan: new Date().toISOString(),
         }
       : {
+          crInvestorId: investor.id,
           crInvestorSlug: investor.slug,
           data: investor,
           hash: jsonToHash(investor),
@@ -120,7 +121,7 @@ const processInvestorsBatch = async (investorsInRound, investorLength) => {
  */
 const getInvestorsToProcess = async () => {
   const round = await findOneAndUpdateRound(
-    { dataLevel: "projectScanned" },
+    { dataLevel: "ProjectScanned" },
     { dataLevel: "InvestorScaned" }
   );
   return round?.data.funds;
@@ -128,16 +129,18 @@ const getInvestorsToProcess = async () => {
 
 async function main() {
   await mongoDB.connect();
-  const investorsInRound = await getInvestorsToProcess();
-  if (!investorsInRound) {
-    console.log("No investors to process");
-    return;
-  }
+  while (true) {
+    const investorsInRound = await getInvestorsToProcess();
+    if (!investorsInRound) {
+      console.log("No investors to process");
+      continue;
+    }
 
-  if (investorsInRound != 0) {
-    await processInvestorsBatch(investorsInRound, investorsInRound.length);
-  } else {
-    console.log("empty");
+    if (investorsInRound != 0) {
+      await processInvestorsBatch(investorsInRound, investorsInRound.length);
+    } else {
+      console.log("empty");
+    }
   }
 }
 main();

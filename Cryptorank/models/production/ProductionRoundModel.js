@@ -1,16 +1,18 @@
 import mongoose from "mongoose";
+
 const RoundSchema = new mongoose.Schema(
   {
     crRoundId: String,
     amount: String,
     raised: Date,
     round: String,
+    hash: String,
     status: {
       type: String,
       enum: ["wait", "emplyeeScaning", "ready", "notified"],
     },
-    project: { type: Schema.Types.ObjectId, ref: "Project" },
-    investor: { type: Schema.Types.ObjectId, ref: "Investor" },
+    project: { type: mongoose.Schema.Types.ObjectId, ref: "Project" },
+    investor: [{ type: mongoose.Schema.Types.ObjectId, ref: "Investor" }],
     createdAt: Date,
     updatedAt: Date,
     lastScan: Date,
@@ -20,7 +22,21 @@ const RoundSchema = new mongoose.Schema(
 const RoundMigration = mongoose.model("Fund", RoundSchema);
 
 const findOneRound = async (query) => {
-  return RoundMigration.findOne(query);
+  return RoundMigration.findOne(query).populate("investor").populate("project");
 };
 
-export { findOneRound };
+const createOrUpdateRound = async (query, record) => {
+  return RoundMigration.findOneAndUpdate(
+    query,
+    {
+      ...record,
+      createdAt: new Date().toISOString(),
+    },
+    {
+      upsert: true,
+      new: true,
+    }
+  );
+};
+
+export { findOneRound, createOrUpdateRound };

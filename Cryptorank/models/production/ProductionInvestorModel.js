@@ -1,8 +1,9 @@
 import mongoose from "mongoose";
-const RoundSchema = new mongoose.Schema(
+const InvestorSchema = new mongoose.Schema(
   {
-    crRoundId: String,
+    crInvestorId: String,
     name: String,
+    slug: String,
     type: String,
     description: String,
     domain: String,
@@ -19,10 +20,23 @@ const RoundSchema = new mongoose.Schema(
   },
   { versionKey: false }
 );
-const RoundMigration = mongoose.model("Investor", RoundSchema);
+const InvestorMigration = mongoose.model("Investor", InvestorSchema);
 
-const findOneRound = async (query) => {
-  return RoundMigration.findOne(query);
+const findOneInvestor = async (query) => {
+  return InvestorMigration.findOne(query);
 };
 
-export { findOneRound };
+const createOrUpdateInvestor = async (query, record) => {
+  return InvestorMigration.findOneAndUpdate(
+    query,
+    {
+      ...record,
+      createdAt: new Date().toISOString(),
+    },
+    {
+      upsert: true,
+      new: true,
+    }
+  );
+};
+export { findOneInvestor, createOrUpdateInvestor };

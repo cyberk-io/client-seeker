@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-const RoundSchema = new mongoose.Schema(
+const ProjectSchema = new mongoose.Schema(
   {
     name: String,
     crSlug: String,
@@ -19,10 +19,23 @@ const RoundSchema = new mongoose.Schema(
   },
   { versionKey: false }
 );
-const RoundMigration = mongoose.model("Investor", RoundSchema);
+const ProjectMigration = mongoose.model("Project", ProjectSchema);
 
-const findOneRound = async (query) => {
-  return RoundMigration.findOne(query);
+const findOneProject = async (query) => {
+  return ProjectMigration.findOne(query);
+};
+const createOrUpdateProject = async (query, record) => {
+  return ProjectMigration.findOneAndUpdate(
+    query,
+    {
+      ...record,
+      createdAt: new Date().toISOString(),
+    },
+    {
+      upsert: true,
+      new: true,
+    }
+  );
 };
 
-export { findOneRound };
+export { findOneProject, createOrUpdateProject };
