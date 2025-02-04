@@ -1,13 +1,13 @@
 import mongoose from "mongoose";
 const RoundSchema = new mongoose.Schema(
   {
-    crRoundId: String,
     name: String,
-    type: String,
-    description: String,
-    domain: String,
+    crSlug: String,
+    detail: JSON,
     social: JSON,
-    text: String,
+    domain: String,
+    social: String,
+    website: String,
     origin: String,
     status: {
       type: String,
