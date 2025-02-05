@@ -6,10 +6,9 @@ import { jsonToHash, sleep } from "./utils/helper.js";
 import {
   findOneRound,
   findOneAndUpdateRound,
-  createOrUpdateRound,
 } from "./models/raw/RoundModel.js";
 import {
-  getCryptorankInvestorCacheId,
+  getCryptorankCacheId,
   getCryptorankProject,
 } from "./services/cryptorankServices.js";
 import { createOrUpdateProject } from "./models/raw/ProjectModel.js";
@@ -62,9 +61,9 @@ const createOrUpdateProjectRecord = async (record, key) => {
 const projectCreate = async () => {
   const { data: round } = await findOneAndUpdateRound(
     { dataLevel: "raw" },
-    { dataLevel: "projectScanned" }
+    { dataLevel: "ProjectScanned" }
   );
-  const cacheId = await getCryptorankInvestorCacheId(round["key"]);
+  const cacheId = await getCryptorankCacheId(round["key"]);
   const project = await getCryptorankProject(cacheId, round["key"]);
   await createOrUpdateProjectRecord(
     (await isProjectRecordUpToDate(project))
@@ -82,7 +81,7 @@ const projectCreate = async () => {
     project["key"]
   );
   console.log("Created: ", project["key"]);
-  await sleep(10000);
+  await sleep(20000);
   projectCreate();
 };
 

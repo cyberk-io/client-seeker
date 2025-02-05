@@ -5,6 +5,7 @@ dotenv.config();
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_BOT_CHAT_ID = process.env.TELEGRAM_BOT_CHAT_ID;
+const TELEGRAM_BOT_CHANNEL_ID = process.env.TELEGRAM_BOT_CHANNEL_ID;
 
 const URL_BASE = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage?chat_id=`;
 
@@ -16,5 +17,13 @@ const sendErrorMessageToTelegram = async (message) => {
   const url = URL_BASE + `${TELEGRAM_BOT_CHAT_ID}&text=${message}`;
   return axiosServices.get(url);
 };
+const sendNewRoundToTelegram = async (message) => {
+  const url = URL_BASE + `${TELEGRAM_BOT_CHANNEL_ID}&text=${message}`;
+  return axiosServices.get(url);
+};
 
-export { sendNewMessageToTelegram, sendErrorMessageToTelegram };
+export {
+  sendNewMessageToTelegram,
+  sendErrorMessageToTelegram,
+  sendNewRoundToTelegram,
+};

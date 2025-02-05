@@ -8,6 +8,10 @@ const RoundSchema = new mongoose.Schema(
       type: String,
       enum: ["new", "process", "done"],
     },
+    dataLevel: {
+      type: String,
+      enum: ["raw", "ProjectScaned", "InvestorScaned", "ProcessedRaw", "Error"],
+    },
     createdAt: Date,
     updatedAt: Date,
     lastScan: Date,
