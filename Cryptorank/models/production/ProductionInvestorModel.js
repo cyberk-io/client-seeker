@@ -39,4 +39,4 @@ const createOrUpdateInvestor = async (query, record) => {
     }
   );
 };
-export { findOneInvestor, createOrUpdateInvestor };
+export { findOneInvestor, createOrUpdateInvestor, InvestorMigration };

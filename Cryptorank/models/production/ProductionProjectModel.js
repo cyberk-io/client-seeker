@@ -38,4 +38,4 @@ const createOrUpdateProject = async (query, record) => {
   );
 };
 
-export { findOneProject, createOrUpdateProject };
+export { findOneProject, createOrUpdateProject, ProjectMigration };

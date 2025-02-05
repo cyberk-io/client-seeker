@@ -81,7 +81,7 @@ const projectCreate = async () => {
     project["key"]
   );
   console.log("Created: ", project["key"]);
-  await sleep(10000);
+  await sleep(20000);
   projectCreate();
 };
 

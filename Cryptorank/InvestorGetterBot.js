@@ -77,7 +77,6 @@ const processAndSaveInvestor = async (investor) => {
         };
     await createOrUpdateInvestorRecord(record, investor.slug);
     console.log("Created: ", investor.slug);
-    await sleep(10000);
   } catch (error) {
     await sendErrorMessageToTelegram(
       `Investor: ${investor.key} insert error in ${new Date().toISOString()}`
@@ -110,6 +109,7 @@ const processInvestorsBatch = async (investorsInRound, investorLength) => {
   delete cleanInvestor.roi;
 
   await processAndSaveInvestor(cleanInvestor);
+  await sleep(20000);
   process.update(investorLength - investorsInRound.length);
   processInvestorsBatch(investorsInRound, investorLength);
 };

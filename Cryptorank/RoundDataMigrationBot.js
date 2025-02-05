@@ -10,7 +10,7 @@ import { createOrUpdateProject } from "./models/production/ProductionProjectMode
 
 const getRoundToProcess = async () => {
   return await findOneAndUpdateRound(
-    { dataLevel: "InvestorScanned" },
+    { dataLevel: "InvestorScaned" },
     { dataLevel: "ProcessedRaw" }
   );
 };
@@ -69,7 +69,8 @@ const processAndSaveRound = async (round) => {
     const roundData = {
       crRoundId: round.data.roundID,
       amount: 0,
-      raised: round.data.totalRaise,
+      raised: round.data.raise,
+      date: round.data.date,
       round: round.data.stage,
       status: "wait",
       project: projectRecord._id,
@@ -98,18 +99,18 @@ const processAndSaveRound = async (round) => {
 
 async function main() {
   await mongoDB.connect();
-  while (true) {
-    const roundProcessing = await getRoundToProcess();
-    if (!roundProcessing) {
-      console.log("No round to process");
-      return;
-    }
-    console.log(roundProcessing);
-    if (roundProcessing != 0) {
-      await processAndSaveRound(roundProcessing);
-    } else {
-      console.log("empty");
-    }
+  // while (true) {
+  const roundProcessing = await getRoundToProcess();
+  if (!roundProcessing) {
+    console.log("No round to process");
+    return;
   }
+  console.log(roundProcessing);
+  if (roundProcessing != 0) {
+    await processAndSaveRound(roundProcessing);
+  } else {
+    console.log("empty");
+  }
+  // }
 }
 main();
